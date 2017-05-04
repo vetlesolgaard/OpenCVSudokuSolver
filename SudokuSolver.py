@@ -18,23 +18,25 @@ class SudokuSolver:
             ret, orig_img = cap.read()
 
             ''' --- Image transform --- '''
-            gray_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
-            canny_img = self.canny_edge_detector(deepcopy(orig_img))
-            contour = self.find_contours(canny_img)
-            contour_img, box_points = self.draw_contours(deepcopy(orig_img), contour)
-
-            cropped = self.crop_image(deepcopy(orig_img), box_points)
+            #gray_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
+            board_img = self.find_sudoku_board(deepcopy(orig_img))
 
             ''' --- Show --- '''
             self.img_list.append(orig_img)
-            self.img_list.append(canny_img)
-            self.img_list.append(contour_img)
-            self.img_list.append(cropped)
+            self.img_list.append(board_img)
             self.display_images()
             self.img_list = [] # Need to clear image_list before next run
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.quit_program(cap)
+
+    def find_sudoku_board(self, orig_img):
+        canny_img = self.canny_edge_detector(orig_img)
+        contour = self.find_contours(canny_img)
+        contour_img, box_points = self.draw_contours(deepcopy(orig_img), contour)
+        self.img_list.append(contour_img)
+        cropped = self.crop_image(deepcopy(orig_img), box_points)
+        return cropped
 
 
     def find_contours(self, img):
@@ -61,7 +63,7 @@ class SudokuSolver:
         #perimeter = cv2.arcLength(contour, True)
         #epsilon = 0.1*cv2.arcLength(contour, True)
         #approx = cv2.approxPolyDP(contour, epsilon, True)
-
+        
         x,y,w,h = cv2.boundingRect(contour)
         contour_img = cv2.rectangle(orig_img, (x,y),(x+w,y+h),(0,255,0),2)
         box_points = np.array([[x, x+w], [y, y+h]])
