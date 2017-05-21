@@ -16,28 +16,60 @@ class SudokuSolver:
         while(True):
             # Capture frame-by-frame
             ret, orig_img = cap.read()
+            self.img_list.append(orig_img)
 
             ''' --- Image transform --- '''
-            #gray_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
-            board_img = self.find_sudoku_board(deepcopy(orig_img))
+            gray_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
+            box_points, contour_img = self.find_sudoku_board(orig_img)
+            board_img = self.crop_image(deepcopy(orig_img), box_points)
+            self.img_list.append(board_img)
+            if len(board_img > 0):
+                board_processed_img = self.canny_edge_detector(board_img)
+                self.img_list.append(board_processed_img)
+                
+                #gray_board_img = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
+                #processed_img = self.preprocess_for_grid_detection(deepcopy(gray_board_img))
+
+                merged_points = self.hough_lines(board_img, board_processed_img)
+                #self.extract_grid(board_img, merged_points)
 
             ''' --- Show --- '''
-            self.img_list.append(orig_img)
-            self.img_list.append(board_img)
+            #self.img_list.append(board_processed_img)
             self.display_images()
             self.img_list = [] # Need to clear image_list before next run
+
+            #variable = raw_input('input something!: ')
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.quit_program(cap)
 
-    def find_sudoku_board(self, orig_img):
-        canny_img = self.canny_edge_detector(orig_img)
-        contour = self.find_contours(canny_img)
-        contour_img, box_points = self.draw_contours(deepcopy(orig_img), contour)
-        self.img_list.append(contour_img)
-        cropped = self.crop_image(deepcopy(orig_img), box_points)
-        return cropped
 
+    def find_sudoku_board(self, orig_img):
+        processed_img = self.canny_edge_detector(orig_img)
+        #gray_board_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
+        #processed_img = self.preprocess_for_grid_detection(gray_board_img)
+        contour = self.find_contours(processed_img)
+        contour_img, box_points = self.draw_contours(orig_img, contour)
+        #cropped = self.crop_image(deepcopy(orig_img), box_points)
+        return box_points, contour_img
+
+
+    def extract_grid(self, img, point_list):
+        coordinate_list = []
+        for i in range(0, len(point_list)):
+            rho = point_list[i][0]
+            theta = point_list[i][1]
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a*rho
+            y0 = b*rho
+            x1 = int(x0 + 1000*(-b))
+            y1 = int(y0 + 1000*(a))
+            x2 = int(x0 - 1000*(-b))
+            y2 = int(y0 - 1000*(a))
+            cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 1)
+            #cv2.circle(img, (int(x0),int(y0)), 5, (0,255,0), 1
+        return
 
     def find_contours(self, img):
         mode = cv2.RETR_TREE
@@ -48,8 +80,8 @@ class SudokuSolver:
         Right now it finds the largest area, needs to find the
         square that resembles a sudokuboard. Feature points maybe?
         '''
-        best_contour = 0
-        area = 0
+        best_contour = None
+        area = None
         for cont in contours:
             area_sample = cv2.contourArea(cont)
             if area < area_sample:
@@ -58,74 +90,167 @@ class SudokuSolver:
         return best_contour
 
 
+    def preprocess_for_grid_detection(self, orig_img):
+        gaus_img = cv2.GaussianBlur(orig_img, (11,11), 0)
+        thresh_img = cv2.adaptiveThreshold(gaus_img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        return thresh_img
+
+
     def draw_contours(self, orig_img, contour):
+        ''' Can be improved, still a little unstable '''
         #contour_img = cv2.drawContours(orig_img, contour, -1, (0,255,0), 3)
         #perimeter = cv2.arcLength(contour, True)
         #epsilon = 0.1*cv2.arcLength(contour, True)
         #approx = cv2.approxPolyDP(contour, epsilon, True)
-        
         x,y,w,h = cv2.boundingRect(contour)
         contour_img = cv2.rectangle(orig_img, (x,y),(x+w,y+h),(0,255,0),2)
-        box_points = np.array([[x, x+w], [y, y+h]])
-
+        box_points = np.array([[y, y+h], [x, x+w]])
+        return contour_img, box_points
         #box_points = np.int0(box_points)
         # contour_img = cv2.drawContours(orig_img,[box_points], 0, (0,255,0), 3)
 
-        return contour_img, box_points
 
-
-    def find_corner_features(self, gray_img):
-        print('find_corner_features()')
-        #sift = cv2.xfeatures2d.SIFT_create()
-        #kp = sift.detect(gray_img, None)
-        #sift_img = cv2.drawKeypoints(gray_img, kp)
-        #c_features_img = cv2.drawKeypoints(gray_img, kp, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        return gray_img
-
-
-    def canny_edge_detector(self, img):
-        apertureSize = 3
-        return cv2.Canny(img, 50, 150, apertureSize)
-
+    def gaussian_blur(self, orig_img):
+        gaus_img = cv2.GaussianBlur(orig_img, (11,11), 0)
+        return gaus_img
 
     def crop_image(self, orig_img, box_points):
-        print(box_points)
         start_vertical = box_points[0][0]
         end_vertical = box_points[0][1]
         start_horizontal = box_points[1][0]
         end_horizontal = box_points[1][1]
-
-        cropped = orig_img[start_horizontal:end_horizontal, start_vertical:end_vertical]
-
+        cropped = orig_img[start_vertical:end_vertical, start_horizontal:end_horizontal]
         return cropped
 
+
+    def hough_lines(self, orig_img, edges):
+        point_list = []
+        def add_to_list(rho, theta):
+            temp_list = []
+            temp_list.append(rho)
+            temp_list.append(theta)
+            if point_list == None:
+                point_list.append(temp_list)
+            else:
+                for x in range(0, len(point_list)):
+                    l_rho = point_list[x][0]
+                    l_theta = point_list[x][1]
+                    if l_rho == 0 or l_theta == -100: continue #Impossible values
+                    elif rho == l_rho and theta == l_theta: continue
+                    elif l_rho > rho-20 and l_rho < rho+20 and l_theta > theta-np.pi/4 and l_theta < theta+np.pi/4:
+                        point_list[x][0] = (rho+l_rho)/2
+                        point_list[x][1] = (theta+l_theta)/2
+                        return
+                point_list.append(temp_list)
+
+        lines = cv2.HoughLines(image=edges, rho=1, theta=1*np.pi/180, threshold=150)
+        if lines != None:
+            for x in range(0, len(lines)):
+                f_rho = lines[x][0][0]
+                f_theta = lines[x][0][1]
+                add_to_list(f_rho, f_theta)
+        if point_list != None:
+            point_list = sorted(point_list,key=lambda x: (x[0],x[1]))
+            for x in range(0, len(point_list)):
+                rho = point_list[x][0]
+                theta = point_list[x][1]
+                a = np.cos(theta)
+                b = np.sin(theta)
+                x0 = a*rho
+                y0 = b*rho
+                cv2.circle(orig_img, (int(x0),int(y0)), 5, (0,255,0), 1)
+        return point_list
+
+
+    def find_corner_features(self, gray_img):
+        corners = cv2.goodFeaturesToTrack(gray_img,100,0.01,30)
+        corners = np.int0(corners)
+        for i in corners:
+            x,y = i.ravel()
+            cv2.circle(gray_img,(x,y),3,255,-1)
+        return gray_img
+
+    def harris_corner_detection(self, gray_img):
+        gray_img = np.float32(gray_img)
+        harris_dst = cv2.cornerHarris(gray_img,5,3,0.04)
+        dst = cv2.dilate(harris_dst,None)
+        return dst
+
+    def canny_edge_detector(self, img):
+        apertureSize = 3
+        canny_img = cv2.Canny(img, 150, 250, apertureSize)
+        canny_img = cv2.dilate(canny_img, (13,13))
+        return canny_img
 
     def sobel(self, img):
         sobelx = cv2.Sobel(img,cv2.CV_64F,1,0,ksize=3)
         sobely = cv2.Sobel(img,cv2.CV_64F,0,1,ksize=3)
         return np.sqrt(sobelx**2 + sobely**2).astype(np.uint8)
 
-
-    def hough_lines(self, orig_img, edges):
-        minLineLength = 0
-        maxLineGap = 40
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength, maxLineGap)
+    def hough_lines_p(self, orig_img, edges):
+        minLineLength = 50
+        maxLineGap = 10
+        lines = cv2.HoughLinesP(image=edges, rho=1, theta=1*np.pi/180, threshold=50, minLineLength=minLineLength, maxLineGap=maxLineGap)
         if(lines != None):
             for x in range(0, len(lines)):
-                for x1,y1,x2,y2 in lines[x]:
-                    cv2.line(orig_img, (x1,y1), (x2,y2), (0,255,0), 2)
+                x1 = lines[x][0][0]
+                y1 = lines[x][0][1]
+                x2 = lines[x][0][2]
+                y2 = lines[x][0][3]
+                cv2.line(orig_img, (x1,y1), (x2,y2), (0,255,0), 1)
         return orig_img
 
+    # def hough_lines(self, orig_img, edges):
+    #     lines = cv2.HoughLines(image=edges, rho=1, theta=1*np.pi/180, threshold=150)
+    #     all_corner_points = []
+    #     all_corner_points.append([])
+    #     all_corner_points.append([])
+    #     if(lines != None):
+    #         print(len(lines))
+    #         for x in range(0, len(lines)):
+    #             if lines[x][0][0] == None:
+    #                 continue
+    #             first_rho = lines[x][0][0]
+    #             first_theta = lines[x][0][1]
+    #             first_a = np.cos(first_theta)
+    #             first_b = np.sin(first_theta)
+    #             mean_x0 = first_a*first_rho
+    #             mean_y0 = first_b*first_rho
+    #             print(mean_x0)
+    #             c = 1
+    #             for y in range(0, len(lines)):
+    #                 if lines[y][0][0] == None:
+    #                     continue
+    #                 rho = lines[y][0][0]
+    #                 theta = lines[y][0][1]
+    #                 a = np.cos(theta)
+    #                 b = np.sin(theta)
+    #                 x0 = a*rho
+    #                 y0 = b*rho
+    #                 if mean_x0 < x0+1 and mean_x0 > x0-1 and mean_y0 < y0+1 and mean_y0 > y0-1:
+    #                     print('asdf')
+    #                     lines[y][0][0] = None
+    #                     mean_x0 += x0
+    #                     mean_y0 += y0
+    #                     c += 1
+    #             all_corner_points[0].append(int(mean_x0/c))
+    #             all_corner_points[1].append(int(mean_y0/c))
+    #             #cv2.circle(orig_img, (int(mean_x0/c),int(mean_y0/c)), 5, (0,255,0), 1)
+    #     print(len(all_corner_points[0]))
+    #     if all_corner_points != None:
+    #         for x in range(0, len(all_corner_points[0])):
+    #             x0 = all_corner_points[0][x]
+    #             y0 = all_corner_points[1][x]
+    #             cv2.circle(orig_img, (x0,y0), 5, (0,255,0), 1)
 
     def show_image(self, img):
         cv2.imshow('img', img)
         cv2.waitKey(0)
 
-
     def display_images(self):
         for idx, img in enumerate(self.img_list):
-            cv2.imshow('img'+str(idx),img)
-
+            if len(img) > 0:
+                cv2.imshow('img'+str(idx),img)
 
     def quit_program(self, cap):
         cap.release()
