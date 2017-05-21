@@ -26,21 +26,19 @@ class SudokuSolver:
             if len(board_img > 0):
                 board_processed_img = self.canny_edge_detector(board_img)
                 self.img_list.append(board_processed_img)
-                
+
                 #gray_board_img = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
                 #processed_img = self.preprocess_for_grid_detection(deepcopy(gray_board_img))
 
-                merged_points = self.hough_lines(board_img, board_processed_img)
+                merged_lines = self.hough_lines(board_img, board_processed_img)
+                self.visualize_grid(board_img, merged_lines)
                 #self.extract_grid(board_img, merged_points)
 
             ''' --- Show --- '''
-            #self.img_list.append(board_processed_img)
             self.display_images()
             self.img_list = [] # Need to clear image_list before next run
-
-            #variable = raw_input('input something!: ')
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            a = raw_input(".")
+            if cv2.waitKey(1) & 0xFF == ord('q') or a == 'q':
                 self.quit_program(cap)
 
 
@@ -53,8 +51,28 @@ class SudokuSolver:
         #cropped = self.crop_image(deepcopy(orig_img), box_points)
         return box_points, contour_img
 
-
     def extract_grid(self, img, point_list):
+        all_lines = []
+        for i in range(0, len(point_list)):
+            lines = []
+            rho = point_list[i][0]
+            theta = point_list[i][1]
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a*rho
+            y0 = b*rho
+            x1 = int(x0 + 1000*(-b))
+            y1 = int(y0 + 1000*(a))
+            x2 = int(x0 - 1000*(-b))
+            y2 = int(y0 - 1000*(a))
+            lines.append(x1)
+            lines.append(y1)
+            lines.append(x2)
+            lines.append(y2)
+            all_lines.append(lines)
+        return
+
+    def visualize_grid(self, img, point_list):
         coordinate_list = []
         for i in range(0, len(point_list)):
             rho = point_list[i][0]
@@ -68,8 +86,8 @@ class SudokuSolver:
             x2 = int(x0 - 1000*(-b))
             y2 = int(y0 - 1000*(a))
             cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 1)
-            #cv2.circle(img, (int(x0),int(y0)), 5, (0,255,0), 1
         return
+
 
     def find_contours(self, img):
         mode = cv2.RETR_TREE
@@ -149,16 +167,16 @@ class SudokuSolver:
                 f_rho = lines[x][0][0]
                 f_theta = lines[x][0][1]
                 add_to_list(f_rho, f_theta)
-        if point_list != None:
-            point_list = sorted(point_list,key=lambda x: (x[0],x[1]))
-            for x in range(0, len(point_list)):
-                rho = point_list[x][0]
-                theta = point_list[x][1]
-                a = np.cos(theta)
-                b = np.sin(theta)
-                x0 = a*rho
-                y0 = b*rho
-                cv2.circle(orig_img, (int(x0),int(y0)), 5, (0,255,0), 1)
+        # if point_list != None:
+        #     point_list = sorted(point_list,key=lambda x: (x[0],x[1]))
+        #     for x in range(0, len(point_list)):
+        #         rho = point_list[x][0]
+        #         theta = point_list[x][1]
+        #         a = np.cos(theta)
+        #         b = np.sin(theta)
+        #         x0 = a*rho
+        #         y0 = b*rho
+        #         cv2.circle(orig_img, (int(x0),int(y0)), 5, (0,255,0), 1)
         return point_list
 
 
