@@ -20,34 +20,44 @@ class SudokuSolver:
 
             ''' --- Image transform --- '''
             gray_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
-            box_points, contour_img = self.find_sudoku_board(orig_img)
+            box_points, contour_img = self.find_sudoku_board(gray_img)
             board_img = self.crop_image(deepcopy(orig_img), box_points)
             self.img_list.append(board_img)
             if len(board_img > 0):
                 board_processed_img = self.canny_edge_detector(board_img)
                 self.img_list.append(board_processed_img)
 
-                #gray_board_img = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
-                #processed_img = self.preprocess_for_grid_detection(deepcopy(gray_board_img))
+                gray_board_img = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
 
-                merged_lines = self.hough_lines(board_img, board_processed_img)
+                processed_img = self.preprocess_for_grid_detection(deepcopy(gray_board_img))
+                self.img_list.append(processed_img)
+                merged_lines = self.hough_lines(board_img, processed_img)
                 self.visualize_grid(board_img, merged_lines)
                 #self.extract_grid(board_img, merged_points)
 
             ''' --- Show --- '''
             self.display_images()
             self.img_list = [] # Need to clear image_list before next run
-            a = raw_input(".")
-            if cv2.waitKey(1) & 0xFF == ord('q') or a == 'q':
+            #a = raw_input(".")
+            if cv2.waitKey(1) & 0xFF == ord('q') :
                 self.quit_program(cap)
 
 
     def find_sudoku_board(self, orig_img):
         processed_img = self.canny_edge_detector(orig_img)
+        gaus_img = cv2.GaussianBlur(orig_img, (9,9), 0)
+
+
+        thresh_img = cv2.adaptiveThreshold(gaus_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 3, 2)
+
+        kernel = np.ones((5,5), np.uint8)
+
+        img_dilation = cv2.dilate(thresh_img, kernel, iterations=1)
         #gray_board_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
         #processed_img = self.preprocess_for_grid_detection(gray_board_img)
-        contour = self.find_contours(processed_img)
+        contour = self.find_contours(thresh_img)
         contour_img, box_points = self.draw_contours(orig_img, contour)
+
         #cropped = self.crop_image(deepcopy(orig_img), box_points)
         return box_points, contour_img
 
@@ -109,8 +119,9 @@ class SudokuSolver:
 
 
     def preprocess_for_grid_detection(self, orig_img):
-        gaus_img = cv2.GaussianBlur(orig_img, (11,11), 0)
-        thresh_img = cv2.adaptiveThreshold(gaus_img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        gaus_img = cv2.GaussianBlur(orig_img, (3,3), 0)
+        thresh_img = cv2.adaptiveThreshold(gaus_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 3, 2)
+
         return thresh_img
 
 
@@ -121,6 +132,10 @@ class SudokuSolver:
         #epsilon = 0.1*cv2.arcLength(contour, True)
         #approx = cv2.approxPolyDP(contour, epsilon, True)
         x,y,w,h = cv2.boundingRect(contour)
+        rect = cv2.minAreaRect(contour)
+        box = cv2.boxPoints(rect)
+        box = np.int0(box)
+
         contour_img = cv2.rectangle(orig_img, (x,y),(x+w,y+h),(0,255,0),2)
         box_points = np.array([[y, y+h], [x, x+w]])
         return contour_img, box_points
