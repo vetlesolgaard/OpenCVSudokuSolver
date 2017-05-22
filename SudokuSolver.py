@@ -33,7 +33,13 @@ class SudokuSolver:
                 merged_lines = self.hough_lines(board_img, board_processed_img)
                 #self.visualize_grid(board_img, merged_lines)
                 grid_points = self.extract_grid(board_img, merged_lines)
-                self.map_grid(board_img, grid_points)
+                mapped_grid = self.map_grid(board_img, grid_points)
+                if mapped_grid != None:
+                    cell_list = self.crop_grid(board_img, mapped_grid)
+                    print('Success')
+                    print()
+                    #for i in range(0, len(cell_list)):
+                    #    self.img_list.append(cell_list[i])
 
                 self.img_list.append(board_img)
 
@@ -54,18 +60,49 @@ class SudokuSolver:
         #cropped = self.crop_image(deepcopy(orig_img), box_points)
         return box_points, contour_img
 
+
+    def crop_grid(self, img, mapped_grid):
+        cells = []
+        for i in range(0, len(mapped_grid)-1):
+            for j in range(0, len(mapped_grid[i])-1):
+                #print('mapped_grid ->', mapped_grid[i][j])
+                topl = mapped_grid[i][j]
+                topr = mapped_grid[i][j+1]
+                botl = mapped_grid[i+1][j]
+                botr = mapped_grid[i+1][j+1]
+                start_vert = int((topl[1]+topr[1])/2)
+                end_vert = int((botl[1]+botr[1])/2)
+                start_horiz = int((topl[0]+botl[0])/2)
+                end_horiz = int((topr[0]+botr[0])/2)
+                # print(topl, topr, botl, botr)
+                # print(start_vert)
+                # print(end_vert)
+                # print(start_horiz)
+                # print(end_horiz)
+                # print('\n---\n')
+                cells.append(img[start_vert:end_vert, start_horiz:end_horiz])
+        return cells
+
+
     def map_grid(self, img, grid_points):
         width = img.shape[0]
         height = img.shape[1]
+        mapped_grid = None
         grid_points = self.cleanup_grid_points(grid_points)
-        grid_points = sorted(grid_points,key=lambda x: x[1])
-        print('Length of list ->', len(grid_points))
+        grid_points = sorted(grid_points,key=lambda x: (x[1],x[0]))
+        #print('Length of list ->', len(grid_points))
         if len(grid_points) > 0:
             for i in range(0, len(grid_points)):
                 x = grid_points[i][0]
                 y = grid_points[i][1]
                 cv2.circle(img, (x,y), 5, (0,255,0), 1)
-        return
+        if len(grid_points) == 100:
+            grid_points = np.asarray(grid_points).reshape((10,10,2))
+            mapped_grid = np.zeros_like(grid_points)
+            for i in range(0, len(grid_points)):
+                mapped_grid[i] = sorted(grid_points[i],key=lambda x: (x[0],x[1]))
+                #print('grid ->', sorted_grid[i])
+        return mapped_grid
 
 
     def cleanup_grid_points(self, grid_points):
@@ -78,7 +115,7 @@ class SudokuSolver:
             for i in range(0, len(clean_list)):
                 x2, y2 = clean_list[i]
                 if x1==x2 and y1==y2: return
-                elif x1>x2-10 and x1<x2+10 and y1>y2-10 and y1<y2+10: return
+                elif x1>x2-20 and x1<x2+20 and y1>y2-20 and y1<y2+20: return
             clean_list.append(grid_points)
         for i in range(0, len(grid_points)):
             append_to_clean_list(grid_points[i])
@@ -212,6 +249,10 @@ class SudokuSolver:
         end_vertical = box_points[0][1]
         start_horizontal = box_points[1][0]
         end_horizontal = box_points[1][1]
+        # print(start_vertical)
+        # print(end_vertical)
+        # print(start_horizontal)
+        # print(end_horizontal)
         cropped = orig_img[start_vertical:end_vertical, start_horizontal:end_horizontal]
         return cropped
 
