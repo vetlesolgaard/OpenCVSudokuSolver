@@ -25,12 +25,12 @@ class SudokuSolver:
             self.img_list.append(board_img)
             if len(board_img > 0):
                 board_processed_img = self.canny_edge_detector(board_img)
-                self.img_list.append(board_processed_img)
+                #self.img_list.append(board_processed_img)
 
                 gray_board_img = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
 
                 processed_img = self.preprocess_for_grid_detection(deepcopy(gray_board_img))
-                self.img_list.append(processed_img)
+                #self.img_list.append(processed_img)
                 merged_lines = self.hough_lines(board_img, processed_img)
                 self.visualize_grid(board_img, merged_lines)
                 #self.extract_grid(board_img, merged_points)
@@ -55,7 +55,7 @@ class SudokuSolver:
         img_dilation = cv2.dilate(thresh_img, kernel, iterations=1)
         #gray_board_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
         #processed_img = self.preprocess_for_grid_detection(gray_board_img)
-        contour = self.find_contours(thresh_img)
+        contour = self.find_contours(img_dilation)
         contour_img, box_points = self.draw_contours(orig_img, contour)
 
         #cropped = self.crop_image(deepcopy(orig_img), box_points)
@@ -121,8 +121,10 @@ class SudokuSolver:
     def preprocess_for_grid_detection(self, orig_img):
         gaus_img = cv2.GaussianBlur(orig_img, (3,3), 0)
         thresh_img = cv2.adaptiveThreshold(gaus_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 3, 2)
+        kernel = np.ones((5,5), np.uint8)
+        img_dilation = cv2.dilate(thresh_img, kernel, iterations=1)
 
-        return thresh_img
+        return img_dilation
 
 
     def draw_contours(self, orig_img, contour):
