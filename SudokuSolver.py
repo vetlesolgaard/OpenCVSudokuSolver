@@ -2,14 +2,16 @@
 import cv2
 import numpy as np
 from copy import copy, deepcopy
-
+import scipy.misc as scipy
+from NumberClassification import NumberClassification
 
 class SudokuSolver:
     def __init__(self):
         print('init')
+        self.nc = NumberClassification()
         self.img_list = []
-        self.video_capture()
 
+        self.video_capture()
 
     def video_capture(self):
         cap = cv2.VideoCapture(0)
@@ -19,27 +21,25 @@ class SudokuSolver:
             self.img_list.append(orig_img)
 
 
-            ''' --- Image transform --- '''
-            gray_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
-            box_points, contour_img = self.find_sudoku_board(orig_img)
-            board_img = self.crop_image(deepcopy(orig_img), box_points)
+            ''' Finding board, return contour and coordinates to box'''
+            gray_img = cv2.cvtColor(deepcopy(orig_img), cv2.COLOR_BGR2GRAY)
+            box_points, contour_img = self.find_sudoku_board(deepcopy(orig_img))
+            board_img = self.crop_image(gray_img, box_points)
+
+            ''' We have a board_img '''
             if len(board_img > 0):
                 board_processed_img = self.canny_edge_detector(board_img)
-                self.img_list.append(board_processed_img)
+                #self.img_list.append(board_processed_img)
 
-                #gray_board_img = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
-                #processed_img = self.preprocess_for_grid_detection(deepcopy(gray_board_img))
-
+                ''' Computing hough lines in board '''
                 merged_lines = self.hough_lines(board_img, board_processed_img)
                 #self.visualize_grid(board_img, merged_lines)
                 grid_points = self.extract_grid(board_img, merged_lines)
                 mapped_grid = self.map_grid(board_img, grid_points)
+                ''' We have a confirmed grid '''
                 if mapped_grid != None:
-                    cell_list = self.crop_grid(board_img, mapped_grid)
-                    print('Success')
-                    print()
-                    #for i in range(0, len(cell_list)):
-                    #    self.img_list.append(cell_list[i])
+                    self.classify_cells(board_img, mapped_grid)
+
 
                 self.img_list.append(board_img)
 
@@ -49,6 +49,15 @@ class SudokuSolver:
             a = raw_input('.')
             if cv2.waitKey(1) & 0xFF == ord('q') or a=='q':
                 self.quit_program(cap)
+
+
+    def classify_cells(self, board_img, mapped_grid):
+        cells = np.asarray(self.crop_grid(board_img, mapped_grid))
+        print('Success')
+        #self.nc.classify_images(cells)
+        for i in range(0, len(cells)):
+            self.img_list.append(cells[i])
+            #print(cell_list[0].shape)
 
 
     def find_sudoku_board(self, orig_img):
@@ -74,13 +83,11 @@ class SudokuSolver:
                 end_vert = int((botl[1]+botr[1])/2)
                 start_horiz = int((topl[0]+botl[0])/2)
                 end_horiz = int((topr[0]+botr[0])/2)
-                # print(topl, topr, botl, botr)
-                # print(start_vert)
-                # print(end_vert)
-                # print(start_horiz)
-                # print(end_horiz)
-                # print('\n---\n')
-                cells.append(img[start_vert:end_vert, start_horiz:end_horiz])
+                #print(start_vert)
+                #print(end_vert)
+                #print(start_horiz)
+                #print(end_horiz)
+                cells.append(scipy.imresize(img[start_vert:end_vert, start_horiz:end_horiz], (28,28)))
         return cells
 
 
@@ -90,18 +97,16 @@ class SudokuSolver:
         mapped_grid = None
         grid_points = self.cleanup_grid_points(grid_points)
         grid_points = sorted(grid_points,key=lambda x: (x[1],x[0]))
-        #print('Length of list ->', len(grid_points))
-        if len(grid_points) > 0:
-            for i in range(0, len(grid_points)):
-                x = grid_points[i][0]
-                y = grid_points[i][1]
-                cv2.circle(img, (x,y), 5, (0,255,0), 1)
-        if len(grid_points) == 100:
+        # if len(grid_points) > 0:
+        #     for i in range(0, len(grid_points)):
+        #         x = grid_points[i][0]
+        #         y = grid_points[i][1]
+        #         cv2.circle(img, (x,y), 5, (0,255,0), 1)
+        if len(grid_points) == 100: # Only 9x9 sudokuboard
             grid_points = np.asarray(grid_points).reshape((10,10,2))
             mapped_grid = np.zeros_like(grid_points)
             for i in range(0, len(grid_points)):
                 mapped_grid[i] = sorted(grid_points[i],key=lambda x: (x[0],x[1]))
-                #print('grid ->', sorted_grid[i])
         return mapped_grid
 
 
