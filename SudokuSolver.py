@@ -16,13 +16,13 @@ class SudokuSolver:
     def video_capture(self):
         cap = cv2.VideoCapture(0)
         while(True):
+            a = raw_input('.')
             # Capture frame-by-frame
             ret, orig_img = cap.read()
             self.img_list.append(orig_img)
 
-
             ''' Finding board, return contour and coordinates to box'''
-            gray_img = cv2.cvtColor(deepcopy(orig_img), cv2.COLOR_BGR2GRAY)
+            gray_img = cv2.cvtColor(deepcopy(orig_img), cv2.COLOR_RGB2GRAY)
             box_points, contour_img = self.find_sudoku_board(deepcopy(orig_img))
             board_img = self.crop_image(gray_img, box_points)
 
@@ -46,18 +46,39 @@ class SudokuSolver:
             ''' --- Show --- '''
             self.display_images()
             self.img_list = [] # Need to clear image_list before next run
-            a = raw_input('.')
             if cv2.waitKey(1) & 0xFF == ord('q') or a=='q':
                 self.quit_program(cap)
 
+    def cells_to_classify(self, cells):
+        classify_cells = []
+        index_list = [0, 5, 8, 9, 20, 29, 41, 47, 51, 54, 63, 77]
+        for idx in index_list:
+            classify_cells.append(cells[idx])
+        return classify_cells
 
     def classify_cells(self, board_img, mapped_grid):
         cells = np.asarray(self.crop_grid(board_img, mapped_grid))
+        cl_cells = np.asarray(self.cells_to_classify(cells))
+        cl_cells = cv2.bitwise_not(cl_cells)
+        cl_cells = cl_cells / 255.0
+        inverted_cells = []
         print('Success')
-        #self.nc.classify_images(cells)
-        for i in range(0, len(cells)):
-            self.img_list.append(cells[i])
-            #print(cell_list[0].shape)
+        for c in cl_cells:
+            #c = cv2.bitwise_not(c)
+            self.img_list.append(c)
+            c[c<0.5] = 0.0
+            c[:5,:] = 0.0
+            c[:,:5] = 0.0
+            c[25:,:] = 0.0
+            c[:,25:] = 0.0
+            #c = c*1.4
+
+            #c[, 18:28] = 0
+            #c = cv2.bitwise_not(c)
+        pred = self.nc.classify_images(cl_cells)
+        y_label = [2, 5, 8, 4, 3, 3, 6, 1, 9, 2, 7, 1]
+        for i in range(0, len(pred)):
+            print(y_label[i], np.argmax(pred[i]))
 
 
     def find_sudoku_board(self, orig_img):

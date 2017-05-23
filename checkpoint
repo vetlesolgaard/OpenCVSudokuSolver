@@ -1,0 +1,2 @@
+model_checkpoint_path: "/Users/vbusolgaard/ifi/UNIK4690/Project/Codedir/OpenCVSudokuSolver/OpenCVSudokuSolver/vars.ckpt"
+all_model_checkpoint_paths: "/Users/vbusolgaard/ifi/UNIK4690/Project/Codedir/OpenCVSudokuSolver/OpenCVSudokuSolver/vars.ckpt"
