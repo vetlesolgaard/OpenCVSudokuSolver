@@ -9,7 +9,6 @@ class Layout(object):
                 self.squares[x] = square
                 #print square.number
                 return True
-
         return False
 
     def exists(self, number):
