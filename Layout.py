@@ -1,4 +1,4 @@
-from square import *
+from Square import *
 
 class Layout(object):
     def __init__(self, length):

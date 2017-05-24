@@ -1,6 +1,6 @@
 import numpy as np
 from Layout import *
-from square import *
+from Square import *
 
 class Board(object):
 
@@ -24,14 +24,12 @@ class Board(object):
         for x in range(0,self.length):
             for y in range(0,self.length):
                 self.solution[x][y] = board[x][y].number
-        #print "TEEEST", board[0][0].number
 
     def solveBoard(self):
-        #boolean
         return self.board[0][0].FillBoard()
+
     def createBoard(self):
         for x in range(0, self.length):
-
             newBox          = Box(int(self.length))
             newRow          = Row(int(self.length))
             newColumn       = Column(int(self.length))
@@ -78,13 +76,9 @@ class Board(object):
 
 
 
-array = np.array([[7,0,0,8,0,0,0,0,0], [9,0,0,0,0,0,0,6,0], [0,6,0,2,0,1,5,0,0],
-                  [0,0,0,0,4,0,8,0,0], [0,0,7,0,0,0,3,0,0], [4,0,0,0,2,5,0,0,7],
-                  [0,4,6,0,0,0,0,8,3], [0,0,3,5,0,0,0,0,0], [0,0,0,0,9,0,0,2,0]])
-x = Board(array, 9,3,3)
-x.createBoard()
-
-
-x.solveBoard()
-
-
+# array = np.array([[7,0,0,8,0,0,0,0,0], [9,0,0,0,0,0,0,6,0], [0,6,0,2,0,1,5,0,0],
+#                   [0,0,0,0,4,0,8,0,0], [0,0,7,0,0,0,3,0,0], [4,0,0,0,2,5,0,0,7],
+#                   [0,4,6,0,0,0,0,8,3], [0,0,3,5,0,0,0,0,0], [0,0,0,0,9,0,0,2,0]])
+# x = Board(array, 9,3,3)
+# x.createBoard()
+# x.solveBoard()

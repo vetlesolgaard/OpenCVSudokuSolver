@@ -11,25 +11,29 @@ import tensorflow as tf
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
-
 dir = os.path.dirname(os.path.realpath(__file__))
 
-# Parameters
+# Parameters for training
 learning_rate = 0.001
 training_iters = 50000
 batch_size = 128
-display_step = 10
 
 # Network Parameters
 n_input = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 dropout = 0.75 # Dropout, probability to keep units
 
-# tf Graph input
 x = tf.placeholder(tf.float32, [None, n_input])
 y = tf.placeholder(tf.float32, [None, n_classes])
 keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
 
+
+#Test method
+def show_image(self, img):
+    cv2.imshow('img', img)
+    cv2.waitKey(0)
+
+#Needed for loading weights from disk
 def load_weights():
     with tf.Session() as sess:
         saver = tf.train.import_meta_graph(dir + '/vars.ckpt.meta')
@@ -45,70 +49,37 @@ def load_weights():
         b_out = graph.get_tensor_by_name('b_out:0').eval()
         return [wc1, wc2, wd1, w_out, bc1, bc2, bd1, b_out]
 
-# Create some wrappers for simplicity
+
+#Convolution + biad add + ReLU activation
 def conv2d(x, W, b, strides=1):
-    # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
     x = tf.nn.bias_add(x, b)
     return tf.nn.relu(x)
 
-
+#Maxpooling
 def maxpool2d(x, k=2):
     # MaxPool2D wrapper
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
                           padding='SAME')
 
 
-# Create model
+#Entire convolution net
 def conv_net(x, weights, biases, dropout):
     # Reshape input picture
     x = tf.reshape(x, shape=[-1, 28, 28, 1])
 
-    # Convolution Layer
     conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    # Max Pooling (down-sampling)
     conv1 = maxpool2d(conv1, k=2)
 
-    # Convolution Layer
     conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    # Max Pooling (down-sampling)
     conv2 = maxpool2d(conv2, k=2)
 
-    # Fully connected layer
-    # Reshape conv2 output to fit fully connected layer input
+    # Fully connected layer section
     fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
     fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
     fc1 = tf.nn.relu(fc1)
-    # Apply Dropout
     fc1 = tf.nn.dropout(fc1, dropout)
 
-    # Output, class prediction
-    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
-    return out
-
-def conv_net2(x, weights, biases, dropout):
-    # Reshape input picture
-    x = tf.reshape(x, shape=[-1, 28, 28, 1])
-
-    # Convolution Layer
-    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    # Max Pooling (down-sampling)
-    conv1 = maxpool2d(conv1, k=2)
-
-    # Convolution Layer
-    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    # Max Pooling (down-sampling)
-    conv2 = maxpool2d(conv2, k=2)
-
-    # Fully connected layer
-    # Reshape conv2 output to fit fully connected layer input
-    fc1 = tf.reshape(conv2, [-1, weights['wd1'].shape[0]])
-    fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
-    fc1 = tf.nn.relu(fc1)
-    # Apply Dropout
-    fc1 = tf.nn.dropout(fc1, dropout)
-
-    # Output, class prediction
     out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
     return out
 
@@ -155,7 +126,7 @@ with tf.Session() as sess:
         # Run optimization op (backprop)
         sess.run(optimizer, feed_dict={x: batch_x, y: batch_y,
                                        keep_prob: dropout})
-        if step % display_step == 0:
+        if step % 10 == 0:
             # Calculate batch loss and accuracy
             loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
                                                               y: batch_y,
@@ -179,10 +150,6 @@ with tf.Session() as sess:
 
     batch_x = mnist.test.images[:10]
     batch_y = mnist.test.labels[:10]
-    # print(batch_x[0])
-    # img = np.reshape(batch_x[0], (28,28))
-    # cv2.imshow('img', img)
-    # cv2.waitKey(0)
 
     out = sess.run(conv_net(batch_x, weights, biases, 1.0))
     for i in range(0, len(batch_y)):

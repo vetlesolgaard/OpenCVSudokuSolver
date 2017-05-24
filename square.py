@@ -86,9 +86,7 @@ class PreExistingSquare(Square):
         super(PreExistingSquare, self).__init__(row,column,box,length,board)
         self.addnumber(number)
 class EmptySquare(Square):
-    
+
     def __init__(self, row, column, box,  length, number, board):
         super(EmptySquare, self).__init__(row,column,box,length, board)
         self.number = number
-
-

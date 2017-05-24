@@ -33,7 +33,9 @@ class NumberClassification:
         print(images.shape)
         images = tf.cast(images, tf.float32)
         with tf.Session() as sess:
-            return sess.run(self.conv_net(images))
+            pred = sess.run(self.conv_net(images))
+            print(len(pred))
+            return pred
 
         # #batch_size = 10
         # #images = tf.cast(images, tf.float32)
@@ -43,8 +45,6 @@ class NumberClassification:
         # cv2.imshow('img', batch_x[0])
         # with tf.Session() as sess:
         #     return sess.run(self.conv_net(batch_x)), batch_y
-
-
 
     def maxpool2d(self, x, k=2):
         return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
@@ -56,25 +56,19 @@ class NumberClassification:
 
     def conv_net(self, x):
         # Reshape input picture
-        x = tf.reshape(x, shape=[-1, 28, 28, 1])
+        x = tf.reshape(x, shape=[-1, 28, 28, 1])        
 
-        # Convolution Layer
         conv1 = self.conv2d(x, self.weights['wc1'], self.biases['bc1'])
-        # Max Pooling (down-sampling)
         conv1 = self.maxpool2d(conv1, k=2)
 
-        # Convolution Layer
         conv2 = self.conv2d(conv1, self.weights['wc2'], self.biases['bc2'])
-        # Max Pooling (down-sampling)
         conv2 = self.maxpool2d(conv2, k=2)
 
         # Fully connected layer
-        # Reshape conv2 output to fit fully connected layer input
         fc1 = tf.reshape(conv2, [-1, self.weights['wd1'].shape[0]])
         fc1 = tf.add(tf.matmul(fc1, self.weights['wd1']), self.biases['bd1'])
         fc1 = tf.nn.relu(fc1)
 
-        # Output, class prediction
         out = tf.add(tf.matmul(fc1, self.weights['out']), self.biases['out'])
         return out
 
