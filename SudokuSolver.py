@@ -10,15 +10,18 @@ class SudokuSolver:
     def __init__(self):
         print('init')
         self.nc = NumberClassification()
+        self.idx_c = 0
+        self.data = []
+        self.train_data = []
+        self.label_data = []
         self.img_list = []
-
         self.video_capture()
 
     def video_capture(self):
         cap = cv2.VideoCapture(0)
         while(True):
             found = False
-            a = raw_input('Ready to find a sudokuboard?')
+            a = ''
 
             # Capture frame-by-frame
             ret, orig_img = cap.read()
@@ -29,8 +32,8 @@ class SudokuSolver:
             processed_img = self.preprocess_for_grid_detection(deepcopy(orig_img))
             box_points, board_img = self.find_sudoku_board(orig_img, processed_img)
             board_processed_img = self.preprocess_for_grid_detection(deepcopy(board_img))
-            self.img_list.append(processed_img)
-            self.img_list.append(board_img)
+            #self.img_list.append(processed_img)
+            #self.img_list.append(board_img)
 
             ''' We have a board_img '''
             if len(board_img > 0):
@@ -38,7 +41,7 @@ class SudokuSolver:
                 ''' Computing hough lines in board '''
                 # Find HoughLines, merges and return #
                 merged_lines = self.hough_lines(deepcopy(board_img), board_processed_img)
-                self.visualize_grid_lines(board_img, merged_lines)
+                #self.visualize_grid_lines(board_img, merged_lines)
 
                 if len(merged_lines) == 20:
                     print('Correct grid detected!')
@@ -50,15 +53,17 @@ class SudokuSolver:
                     # ''' We have a confirmed grid '''
                     if mapped_grid is not None:
                         #print('map_grid ->', len(mapped_grid))
-
-                        prefilled = self.classify_cells_processed(board_processed_img, mapped_grid)
+                        data_to_save = []
+                        #prefilled, data_to_save = self.classify_cells_processed(board_processed_img, mapped_grid)
+                        data_to_save = self.classify_cells_processed(board_processed_img, mapped_grid)
 
                         # gray_board_img = cv2.cvtColor(board_img, cv2.COLOR_RGB2GRAY)
                         # prefilled = self.classify_cells(gray_board_img, mapped_grid)
 
-                        sudoku_to_solve = self.create_array_with_prefilled(prefilled)
-                        print(sudoku_to_solve)
+                        #sudoku_to_solve = self.create_array_with_prefilled(prefilled)
+                        #print(sudoku_to_solve)
                         #self.solve_sudoku_board(sudoku_to_solve)
+                        self.save_data(data_to_save)
                         found = True
 
             ''' --- Show --- '''
@@ -67,7 +72,7 @@ class SudokuSolver:
             if cv2.waitKey(1) & 0xFF == ord('q') or a=='q':
                 self.quit_program(cap)
             if found:
-                a = raw_input('Sudokuboard found!')
+                a = raw_input('.')
 
 
     def solve_sudoku_board(self, board_to_solve):
@@ -86,23 +91,23 @@ class SudokuSolver:
 
     def classify_cells_processed(self, board_img, mapped_grid):
         cells = np.asarray(self.crop_grid(board_img, mapped_grid))
-        cl_cells = []
-        idx_list = []
-        for idx, c in enumerate(cells):
-            c[:4,:] = 0.0
-            c[:,:4] = 0.0
-            c[24:,:] = 0.0
-            c[:,24:] = 0.0
-            if np.sum(c)/784 > 8:
-                cl_cells.append(c)
-                idx_list.append(idx)
-                self.img_list.append(c)
-        print('to classify: ', len(cl_cells))
-        pred = np.argmax(self.nc.classify_images(np.asarray(cl_cells)), axis=1)
-        prefilled = []
-        prefilled.append(pred)
-        prefilled.append(idx_list)
-        return prefilled
+        #cl_cells = []
+        #idx_list = []
+        # for idx, c in enumerate(cells):
+        #     c[:4,:] = 0.0
+        #     c[:,:4] = 0.0
+        #     c[24:,:] = 0.0
+        #     c[:,24:] = 0.0
+        #     print(np.sum(c))
+        #     if np.sum(c)/784 > 8:
+        #         cl_cells.append(c)
+        #         idx_list.append(idx)
+        #         self.img_list.append(c)
+        # pred = np.argmax(self.nc.classify_images(np.asarray(cl_cells)), axis=1)
+        # prefilled = []
+        # prefilled.append(pred)
+        # prefilled.append(idx_list)
+        return cells #prefilled, cl_cells
 
     def classify_cells(self, board_img, mapped_grid):
         cells = np.asarray(self.crop_grid(board_img, mapped_grid))
@@ -414,6 +419,27 @@ class SudokuSolver:
         sobelx = cv2.Sobel(img,cv2.CV_64F,1,0,ksize=3)
         sobely = cv2.Sobel(img,cv2.CV_64F,0,1,ksize=3)
         return np.sqrt(sobelx**2 + sobely**2).astype(np.uint8)
+
+
+    def save_data(self, img_list):
+        for idx, img in enumerate(img_list):
+            cv2.imshow('img'+str(idx), img)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                exit(0)
+            inp = raw_input('Label? ')
+            if inp == 's':
+                print('Skip!')
+            elif inp == 'save':
+                self.data.append(self.train_data)
+                self.data.append(self.label_data)
+                np.save('training_data', self.data)
+                exit(0)
+            elif inp == '':
+                print('Enter!')
+            else:
+                self.train_data.append(img)
+                self.label_data.append(int(inp))
+            cv2.destroyAllWindows()
 
     def show_image(self, img):
         cv2.imshow('img', img)
