@@ -17,47 +17,47 @@ class SudokuSolver:
     def video_capture(self):
         cap = cv2.VideoCapture(0)
         while(True):
-            a = raw_input('.')
+            a = 'a'
 
             # Capture frame-by-frame
             ret, orig_img = cap.read()
             self.img_list.append(orig_img)
 
             ''' Finding board, return contour and coordinates to box'''
-            box_points, contour_img, processed_img = self.find_sudoku_board(deepcopy(orig_img))
+            processed_img = self.canny_edge_detector(deepcopy(orig_img))
+            box_points, contour_img, processed_img = self.find_sudoku_board(orig_img, processed_img)
             board_img = self.crop_image(orig_img, box_points)
             gray_board_img = cv2.cvtColor(board_img, cv2.COLOR_RGB2GRAY)
             board_processed_img = self.crop_image(processed_img, box_points)
-            self.img_list.append(board_processed_img)
+            #self.img_list.append(board_processed_img)
+            self.img_list.append(processed_img)
 
             ''' We have a board_img '''
-            if len(board_img > 0):
-
-                ''' Computing hough lines in board '''
-                # Find HoughLines, merges and return #
-                merged_lines = self.hough_lines(deepcopy(board_img), board_processed_img)
-                self.img_list.append(board_img)
-                if len(merged_lines) > 0:
-                    print(merged_lines)
-                    print('lines ->', len(merged_lines))
-                self.visualize_grid_lines(board_img, merged_lines)
-                if len(merged_lines) == 20:
-                    print('Correct grid detected!')
-                    #self.visualize_grid(board_img, merged_lines)
-                    # Extract grid coordinates #
-                    grid_points = self.extract_grid(board_img, merged_lines)
-                    # # Maps the grid points to cells #
-                    mapped_grid = self.map_grid(board_img, grid_points)
-                    # ''' We have a confirmed grid '''
-                    print(mapped_grid)
-                    if mapped_grid is not None:
-                        print('map_grid ->', len(mapped_grid))
-                        prefilled = self.classify_cells(gray_board_img, mapped_grid)
-                        sudoku_to_solve = self.create_array_with_prefilled(prefilled)
-                        print(sudoku_to_solve)
-                        self.solve_sudoku_board(sudoku_to_solve)
-
-
+            # if len(board_img > 0):
+            #
+            #     ''' Computing hough lines in board '''
+            #     # Find HoughLines, merges and return #
+            #     merged_lines = self.hough_lines(deepcopy(board_img), board_processed_img)
+            #     # if len(merged_lines) > 0:
+            #     #     print(merged_lines)
+            #     #     print('lines ->', len(merged_lines))
+            #     self.visualize_grid_lines(board_img, merged_lines)
+                # if len(merged_lines) == 20:
+                #     print('Correct grid detected!')
+                #     #self.visualize_grid(board_img, merged_lines)
+                #     # Extract grid coordinates #
+                #     grid_points = self.extract_grid(board_img, merged_lines)
+                #     # # Maps the grid points to cells #
+                #     mapped_grid = self.map_grid(board_img, grid_points)
+                #     # ''' We have a confirmed grid '''
+                #     if mapped_grid is not None:
+                #         #print('map_grid ->', len(mapped_grid))
+                #         prefilled = self.classify_cells(gray_board_img, mapped_grid)
+                #         sudoku_to_solve = self.create_array_with_prefilled(prefilled)
+                #         print(sudoku_to_solve)
+                #         # print(sudoku_to_solve)
+                #         # self.solve_sudoku_board(sudoku_to_solve)
+                #         a = raw_input('.')
 
             ''' --- Show --- '''
             self.display_images()
@@ -67,7 +67,7 @@ class SudokuSolver:
 
 
     def solve_sudoku_board(self, board_to_solve):
-        b = Board(array, 9,3,3)
+        b = Board(board_to_solve, 9,3,3)
         b.createBoard()
         solved_board = b.solveBoard()
         print(solved_board)
@@ -77,7 +77,7 @@ class SudokuSolver:
         sudoku_to_solve = np.zeros(81)
         for i in range(0, len(prefilled[0])):
             sudoku_to_solve[prefilled[1][i]] = prefilled[0][i]
-        return np.reshape(sudoku_to_solve, (9,9))
+        return np.reshape(sudoku_to_solve, (9,9)).astype(int)
 
     def classify_cells(self, board_img, mapped_grid):
         cells = np.asarray(self.crop_grid(board_img, mapped_grid))
@@ -86,30 +86,32 @@ class SudokuSolver:
         idx_list = []
         print('Success')
         for idx, c in enumerate(cells):
-            self.img_list.append(c)
-            c[c<0.5] = 0.0
+            c[c<0.6] = 0.0 #Threshhold works for now#
             c[:5,:] = 0.0
             c[:,:5] = 0.0
             c[25:,:] = 0.0
             c[:,25:] = 0.0
-            c = c*1.4
-            print(np.sum(c[5:20,10:18]))
+            c = c*1.2
+            if idx == 0:
+                print(c)
+                print(np.sum(c))
             if np.sum(c[5:20,10:18]) > 10.0:
                 cl_cells.append(c)
                 idx_list.append(idx)
+            self.img_list.append(c)
+        print('to classify: ', len(cl_cells))
         pred = np.argmax(self.nc.classify_images(np.asarray(cl_cells)), axis=1)
-        y_label = [2, 5, 8, 4, 3, 3, 6, 1, 9, 2, 7, 1]
-        for i in range(0, len(pred)):
-            print(y_label[i], pred[i])
+        # y_label = [2, 5, 8, 4, 3, 8, 6, 1, 9, 8, 7, 1]
+        # for i in range(0, len(pred)):
+        #     print(y_label[i], pred[i])
         prefilled = []
         prefilled.append(pred)
         prefilled.append(idx_list)
-        print('pred -> ', pred)
-        print('idx list -> ', idx_list)
+        # print('pred -> ', pred)
+        # print('idx list -> ', idx_list)
         return prefilled
 
-    def find_sudoku_board(self, orig_img):
-        processed_img = self.canny_edge_detector(orig_img)
+    def find_sudoku_board(self, orig_img, processed_img):
         #gray_board_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
         #processed_img = self.preprocess_for_grid_detection(gray_board_img)
         contour = self.find_contours(processed_img)
@@ -139,10 +141,8 @@ class SudokuSolver:
         width = img.shape[0]
         height = img.shape[1]
         mapped_grid = None
-        print('grid_points before -> ', len(grid_points))
         grid_points = self.cleanup_grid_points(grid_points)
         grid_points = sorted(grid_points,key=lambda x: (x[1],x[0]))
-        print('grid_points -> ', len(grid_points))
         if len(grid_points) == 100: # Only 9x9 sudokuboard
             grid_points = np.asarray(grid_points).reshape((10,10,2))
             mapped_grid = np.zeros_like(grid_points)
@@ -320,7 +320,7 @@ class SudokuSolver:
                 y2 = int(y0 - 1000*(a))
                 if x < 3 or x > 18:
                     cv2.line(orig_img, (x1, y1), (x2, y2), (0,255,0), 1)
-                if f_theta > 3.0 or f_rho == 0.0: continue
+                if f_theta > 3.0: continue #or f_rho == 0.0: continue
                 add_to_list(f_rho, f_theta)
         self.img_list.append(orig_img)
         return sorted(point_list,key=lambda x: x[0])
@@ -371,8 +371,9 @@ class SudokuSolver:
 
     def canny_edge_detector(self, img):
         apertureSize = 3
-        canny_img = cv2.Canny(img, 150, 250, apertureSize)
-        canny_img = cv2.dilate(canny_img, (13,13))
+        canny_img = cv2.Canny(img, 100, 150, apertureSize)
+        canny_img = cv2.dilate(canny_img, kernel=(3,3), iterations=2)
+        #canny_img = cv2.erode(canny_img, (33,33))
         return canny_img
 
     def sobel(self, img):

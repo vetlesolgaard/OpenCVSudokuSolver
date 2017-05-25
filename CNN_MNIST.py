@@ -14,7 +14,7 @@ mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 dir = os.path.dirname(os.path.realpath(__file__))
 
 # Parameters for training
-learning_rate = 0.001
+learning_rate = 1e-4
 training_iters = 50000
 batch_size = 128
 
@@ -108,7 +108,7 @@ pred = conv_net(x, weights, biases, keep_prob)
 # Define loss and optimizer
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
+rmsprop = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(cost)
 # Evaluate model
 correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
@@ -120,28 +120,40 @@ init = tf.global_variables_initializer()
 with tf.Session() as sess:
     sess.run(init)
     step = 1
-    # Keep training until reach max iterations
-    while step * batch_size < training_iters:
-        batch_x, batch_y = mnist.train.next_batch(batch_size)
-        # Run optimization op (backprop)
-        sess.run(optimizer, feed_dict={x: batch_x, y: batch_y,
-                                       keep_prob: dropout})
-        if step % 10 == 0:
-            # Calculate batch loss and accuracy
-            loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
-                                                              y: batch_y,
-                                                              keep_prob: 1.})
-            print("Iter " + str(step*batch_size) + ", Minibatch Loss= " + \
-                  "{:.6f}".format(loss) + ", Training Accuracy= " + \
-                  "{:.5f}".format(acc))
-        step += 1
-    print("Optimization Finished!")
 
-    # Calculate accuracy for 256 mnist test images
-    print("Testing Accuracy:", \
-        sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
-                                      y: mnist.test.labels[:256],
-                                      keep_prob: 1.}))
+    ''' Alternative Method '''
+    for i in range(15000):
+        batch_x, batch_y = mnist.train.next_batch(batch_size)
+        if i%100 == 0:
+            train_accuracy = accuracy.eval(feed_dict={
+                x: batch_x, y: batch_y, keep_prob: 1.0})
+            print("step %d, training accuracy %g"%(i, train_accuracy))
+        rmsprop.run(feed_dict={x: batch_x, y: batch_y, keep_prob: 0.5})
+
+    print("test accuracy %g"%accuracy.eval(feed_dict={x: mnist.test.images, y: mnist.test.labels, keep_prob: 1.0}))
+
+    ''' First training Method '''
+    # while step * batch_size < training_iters:
+    #     batch_x, batch_y = mnist.train.next_batch(batch_size)
+    #     # Run optimization op (backprop)
+    #     sess.run(optimizer, feed_dict={x: batch_x, y: batch_y,
+    #                                    keep_prob: dropout})
+    #     if step % 10 == 0:
+    #         # Calculate batch loss and accuracy
+    #         loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
+    #                                                           y: batch_y,
+    #                                                           keep_prob: 1.})
+    #         print("Iter " + str(step*batch_size) + ", Minibatch Loss= " + \
+    #               "{:.6f}".format(loss) + ", Training Accuracy= " + \
+    #               "{:.5f}".format(acc))
+    #     step += 1
+    # print("Optimization Finished!")
+    #
+    # # Calculate accuracy for 256 mnist test images
+    # print("Testing Accuracy:", \
+    #     sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
+    #                                   y: mnist.test.labels[:256],
+    #                                   keep_prob: 1.}))
 
     saver = tf.train.Saver()
     path = saver.save(sess, dir + '/vars.ckpt')

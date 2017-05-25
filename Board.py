@@ -42,7 +42,6 @@ class Board(object):
         self.lastSquare     = None
         for x in range(0,self.length):
             for y in range(0,self.length):
-
                 if self.sudokuarray[x][y] == 0:
                     self.squareNumber += 1
                     self.newSquare = EmptySquare(self.row[x], self.column[y], self.box[self.countBox-1], self.length, 0,self)
@@ -76,6 +75,15 @@ class Board(object):
 
 
 
+# array = np.array([[2, 0, 0, 0, 0, 5, 0, 0, 8],
+#                  [4, 0, 0, 0, 0, 0, 0, 4, 0],
+#                  [0, 0, 3, 0, 0, 0, 0, 5, 0],
+#                  [0, 0, 8, 0, 0, 0, 0, 0, 0],
+#                  [0, 0, 0, 0, 0, 6, 0, 0, 0],
+#                  [0, 0, 1, 0, 0, 0, 8, 0, 0],
+#                  [8, 0, 0, 0, 0, 0, 0, 0, 0],
+#                  [7, 0, 0, 0, 0, 0, 0, 0, 0],
+#                  [0, 0, 0, 0, 0, 1, 0, 0, 0]])
 # array = np.array([[7,0,0,8,0,0,0,0,0], [9,0,0,0,0,0,0,6,0], [0,6,0,2,0,1,5,0,0],
 #                   [0,0,0,0,4,0,8,0,0], [0,0,7,0,0,0,3,0,0], [4,0,0,0,2,5,0,0,7],
 #                   [0,4,6,0,0,0,0,8,3], [0,0,3,5,0,0,0,0,0], [0,0,0,0,9,0,0,2,0]])
